@@ -2,10 +2,10 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>UID Converter (Firebase + NFC)</title>
+  <title>UID Converter – Karty Mobilne</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f5f5f5; color: #333; }
-    h2 { color: #2c3e50; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; color: #333; margin: 20px; }
+    h2 { color: #2c3e50; margin-bottom: 15px; }
     .inputs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     input { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; flex: 1; min-width: 120px; }
     button { padding: 10px 15px; font-size: 14px; border: none; border-radius: 5px; cursor: pointer; background: #3498db; color: white; transition: background 0.3s; }
@@ -14,13 +14,14 @@
     button.delete:hover { background: #c0392b; }
     button.copy { background: #2ecc71; margin-left:5px; padding:3px 6px; font-size:12px; }
     button.copy:hover { background: #27ae60; }
-    table { border-collapse: collapse; width: 100%; background: white; border-radius: 5px; overflow: hidden; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
-    th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: center; }
-    th { background: #3498db; color: white; position: sticky; top: 0; }
-    tr:hover { background: #f0f8ff; }
-    @media (max-width: 768px) {
-      .inputs { flex-direction: column; }
-      table { display: block; overflow-x: auto; white-space: nowrap; }
+    .cards-container { display: flex; flex-direction: column; gap: 10px; }
+    .card { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+    .card-row { display: flex; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; }
+    .label { font-weight: bold; margin-right: 5px; }
+    @media(min-width: 768px) {
+      .cards-container { display: table; width: 100%; }
+      .card { display: table-row; background: none; box-shadow: none; border-bottom: 1px solid #ddd; }
+      .card-row { display: table-cell; margin: 0; padding: 10px; vertical-align: middle; }
     }
   </style>
 </head>
@@ -36,26 +37,11 @@
     <button onclick="startNFC()">Skanuj NFC</button>
   </div>
 
-  <table id="dataTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Imię</th>
-        <th>Nazwisko</th>
-        <th>UID</th>
-        <th>40-bit</th>
-        <th>24-bit</th>
-        <th>8,16-bit</th>
-        <th>Akcje</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="cards-container" id="cardsContainer"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
 
     // 🔑 Wklej tu swoje dane konfiguracyjne z Firebase Console
     const firebaseConfig = {
@@ -108,29 +94,30 @@
       navigator.clipboard.writeText(text);
     }
 
-    function renderTable(data, keys) {
-      const tbody = document.querySelector("#dataTable tbody");
-      tbody.innerHTML = "";
+    function renderCards(data, keys) {
+      const container = document.getElementById("cardsContainer");
+      container.innerHTML = "";
       keys.forEach(key => {
         const r = data[key];
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${key}</td>
-          <td>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></td>
-          <td>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></td>
-          <td>${r.uid}</td>
-          <td>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></td>
-          <td>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></td>
-          <td>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></td>
-          <td><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></td>
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-row"><span class="label">ID:</span> ${key}</div>
+          <div class="card-row"><span class="label">Imię:</span> ${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></div>
+          <div class="card-row"><span class="label">Nazwisko:</span> ${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></div>
+          <div class="card-row"><span class="label">UID:</span> ${r.uid}</div>
+          <div class="card-row"><span class="label">40-bit:</span> ${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
+          <div class="card-row"><span class="label">24-bit:</span> ${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
+          <div class="card-row"><span class="label">8,16-bit:</span> ${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
+          <div class="card-row"><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></div>
         `;
-        tbody.appendChild(tr);
+        container.appendChild(card);
       });
     }
 
     onValue(ref(db, "records"), (snapshot) => {
       const data = snapshot.val() || {};
-      renderTable(data, Object.keys(data));
+      renderCards(data, Object.keys(data));
     });
 
     function clearData() {
