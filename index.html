@@ -98,26 +98,28 @@ function saveData() {
       navigator.clipboard.writeText(text);
     }
 
-    function renderCards(data) {
-      const container = document.getElementById("cardsContainer");
-      container.innerHTML = "";
-      Object.keys(data).forEach(key => {
-        const r = data[key];
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <div class="card-row"><span class="label">ID:</span>${key}</div>
-          <div class="card-row"><span class="label">Imię:</span>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></div>
-          <div class="card-row"><span class="label">Nazwisko:</span>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></div>
-          <div class="card-row"><span class="label">UID:</span>${r.uid}</div>
-          <div class="card-row"><span class="label">40-bit:</span>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
-          <div class="card-row"><span class="label">24-bit:</span>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
-          <div class="card-row"><span class="label">8,16-bit:</span>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
-          <div class="card-row"><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></div>
-        `;
-        container.appendChild(card);
-      });
-    }
+function renderCards(data) {
+  const container = document.getElementById("cardsContainer");
+  container.innerHTML = "";
+
+  const keys = Object.keys(data);
+  keys.forEach((key, index) => {
+    const r = data[key];
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-row"><span class="label">ID:</span> ${index + 1}</div>
+      <div class="card-row"><span class="label">Imię:</span>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></div>
+      <div class="card-row"><span class="label">Nazwisko:</span>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></div>
+      <div class="card-row"><span class="label">UID:</span>${r.uid}</div>
+      <div class="card-row"><span class="label">40-bit:</span>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
+      <div class="card-row"><span class="label">24-bit:</span>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
+      <div class="card-row"><span class="label">8,16-bit:</span>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
+      <div class="card-row"><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></div>
+    `;
+    container.appendChild(card);
+  });
+}
 
     db.ref('records').on('value', snapshot => {
       renderCards(snapshot.val() || {});
