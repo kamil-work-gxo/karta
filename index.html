@@ -230,11 +230,11 @@ function renderCards(data) {
     card.innerHTML = `
       <div class="card-row"><span class="label">ID:</span> ${index + 1}</div>
       <div class="card-row"><span class="label">Imię:</span>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">Copy</button></div>
-      <div class="card-row"><span class="label">Nazwisko:</span>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></div>
+      <div class="card-row"><span class="label">Nazwisko:</span>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">Copy</button></div>
       <div class="card-row"><span class="label">UID:</span>${r.uid}</div>
-      <div class="card-row"><span class="label">40-bit:</span>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
-      <div class="card-row"><span class="label">24-bit:</span>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
-      <div class="card-row"><span class="label">8,16-bit:</span>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
+      <div class="card-row"><span class="label">40-bit:</span>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">Copy</button></div>
+      <div class="card-row"><span class="label">24-bit:</span>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">Copy</button></div>
+      <div class="card-row"><span class="label">8,16-bit:</span>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">Copy</button></div>
       <div class="card-row"><button class="delete" onclick="confirmDelete('${key}')">❌ Usuń</button></div>
     `;
     container.appendChild(card);
