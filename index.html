@@ -138,7 +138,7 @@ function saveData() {
           await reader.scan();
           reader.onreading = event => {
             const serial = event.serialNumber;
-            document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join("");
+            document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join(":");
           };
         } catch(err) {
           console.error("Błąd NFC:", err);
