@@ -1,365 +1,95 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>NFC UID Manager</title>
-<style>
-  :root { --bg:#f6f7fb; --card:#fff; --muted:#666; --accent:#0b66ff; }
-  body { font-family: Inter, Roboto, system-ui, Arial; margin:18px; background:var(--bg); color:#111;}
-  .wrap { max-width:920px; margin:0 auto; }
-  header { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
-  h1 { margin:0; font-size:20px; }
-  .card { background:var(--card); padding:12px; border-radius:10px; box-shadow:0 4px 18px rgba(12,20,40,0.06); margin-bottom:12px; }
-  label { display:block; font-size:13px; color:var(--muted); margin-top:8px; }
-  input[type="text"], input[type="search"] { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #e6e9ef; font-family:monospace; }
-  .row { display:flex; gap:8px; margin-top:8px; }
-  .col { flex:1; }
-  button { background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
-  button.ghost { background:transparent; color:var(--accent); border:1px solid rgba(11,102,255,0.12); }
-  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
-  th,td { padding:8px 6px; border-bottom:1px solid #eef1f6; text-align:left; font-family:monospace; vertical-align:middle; }
-  th { background:#fafbff; font-weight:700; font-family:inherit; }
-  .small { font-size:12px; color:var(--muted); }
-  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .right { text-align:right; }
-  .tag { background:#f1f7ff; color:var(--accent); padding:4px 8px; border-radius:999px; font-size:12px; display:inline-block; }
-  .danger { background:#ffecec; color:#b00020; }
-  .ok { background:#ecffef; color:#007a2f; }
-  .btn-icon { padding:6px 8px; font-weight:600; border-radius:8px; }
-  .muted { color:var(--muted); }
-  @media (max-width:720px) {
-    .row { flex-direction:column; }
-    header { flex-direction:column; align-items:flex-start; gap:6px; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>UID Converter</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input, button { margin: 5px; padding: 8px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+  </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>NFC UID Manager</h1>
-      <div class="small muted">Scanuj NFC lub wpisz UID ręcznie • dane przechowywane lokalnie</div>
-    </header>
+  <h2>UID → 8/16/24/40 bit</h2>
+  <input id="name" placeholder="Imię i nazwisko">
+  <input id="uid" placeholder="UID np. 95:0C:AA:57">
+  <button onclick="saveData()">Zapisz</button>
+  <button onclick="clearData()">Wyczyść wszystko</button>
 
-    <div class="card">
-      <div class="row">
-        <div class="col">
-          <label>UID (hex, np. 95:0C:AA:57)</label>
-          <input id="uidInput" type="text" placeholder="wpisz UID lub kliknij 'Skanuj NFC'">
-        </div>
-        <div style="width:160px">
-          <label>Imię i nazwisko</label>
-          <input id="nameInput" type="text" placeholder="Jan Kowalski">
-        </div>
-      </div>
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>Imię i nazwisko</th>
+        <th>UID</th>
+        <th>8-bit</th>
+        <th>16-bit</th>
+        <th>24-bit</th>
+        <th>40-bit</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-      <div class="row" style="margin-top:10px; align-items:center;">
-        <div class="actions">
-          <button id="scanBtn">Skanuj NFC</button>
-          <button id="saveBtn" class="ghost">Zapisz</button>
-          <button id="exportBtn" class="ghost">Eksportuj CSV</button>
-          <button id="clearBtn" class="btn-icon danger">Wyczyść wszystko</button>
-        </div>
-        <div style="margin-left:auto" class="small muted">
-          <span id="status">Status: oczekiwanie</span>
-        </div>
-      </div>
+  <script>
+    function parseUID(uidHex) {
+      const hex = uidHex.replace(/:/g, "").toUpperCase();
+      const bytes = hex.match(/.{2}/g);
+      if (!bytes || bytes.length < 4) return null;
 
-      <div class="card" style="margin-top:12px;">
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <div><strong>Odczyt/Podgląd:</strong></div>
-          <div class="tag">Hex: <span id="hexView">—</span></div>
-          <div class="tag">Hex: <span id="hexWithColons">—</span></div>
-          <div class="tag">Little-endian (dec): <span id="decLittle">—</span></div>
-          <div class="tag">Big-endian (dec): <span id="decBig">—</span></div>
-        </div>
+      const b1 = bytes[0], b2 = bytes[1], b3 = bytes[2], b4 = bytes[3];
 
-        <table id="conversionsTable">
-          <thead>
-            <tr><th>Opis</th><th>Wartość</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>8-bit (ostatni bajt)</td><td id="val8">—</td></tr>
-            <tr><td>16-bit (2 ostatnie bajty)</td><td id="val16">—</td></tr>
-            <tr><td>24-bit (3 ostatnie bajty)</td><td id="val24">—</td></tr>
-            <tr><td>40-bit (prepend 00)</td><td id="val40">—</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      const val8  = parseInt(b3, 16);
+      const val16 = parseInt(b2 + b1, 16);
+      const val24 = parseInt(b3 + b2 + b1, 16);
+      const val40 = parseInt("00" + b4 + b3 + b2 + b1, 16);
 
-    <div class="card">
-      <h3>Lista zapisanych</h3>
-      <div class="small muted">Wpisy pozostaną dopóki nie klikniesz "Wyczyść wszystko". Możesz usuwać pojedyncze wiersze.</div>
-      <table id="listTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Imię i nazwisko</th>
-            <th>UID (hex)</th>
-            <th>UID (dec little)</th>
-            <th>8 / 16 / 24 / 40</th>
-            <th>Data</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="listBody">
-          <!-- wiersze dodawane dynamicznie -->
-        </tbody>
-      </table>
-    </div>
+      return {
+        uid: hex,
+        bit8: val8,
+        bit16: val16.toString().padStart(5, "0"),
+        bit24: val24.toString().padStart(10, "0"),
+        bit40: val40.toString().padStart(10, "0")
+      };
+    }
 
-  </div>
+    function saveData() {
+      const name = document.getElementById("name").value.trim();
+      const uidInput = document.getElementById("uid").value.trim();
+      if (!name || !uidInput) return alert("Podaj imię i nazwisko oraz UID");
 
-<script>
-/* --- UTIL: hex formatting & conversions --- */
-function sanitizeHex(input) {
-  if(!input) return "";
-  return input.toString().replace(/[^0-9a-fA-F]/g,'').toUpperCase();
-}
-function hexWithColons(hex) {
-  hex = sanitizeHex(hex);
-  let pairs = hex.match(/.{1,2}/g) || [];
-  return pairs.join(':');
-}
-function chunkRight(hex, nChars) {
-  hex = sanitizeHex(hex);
-  if(hex.length <= nChars) return hex.padStart(nChars,'0');
-  return hex.slice(-nChars);
-}
-function hexToDecSafe(hex) {
-  hex = sanitizeHex(hex);
-  if(hex === "") return "0";
-  try {
-    return BigInt('0x' + hex).toString(10);
-  } catch(e) {
-    return "0";
-  }
-}
-function reverseBytes(hex) {
-  hex = sanitizeHex(hex);
-  let arr = hex.match(/.{1,2}/g) || [];
-  return arr.reverse().join('');
-}
+      const parsed = parseUID(uidInput);
+      if (!parsed) return alert("Błędny UID");
 
-/* --- DOM refs --- */
-const uidInput = document.getElementById('uidInput');
-const nameInput = document.getElementById('nameInput');
-const scanBtn = document.getElementById('scanBtn');
-const saveBtn = document.getElementById('saveBtn');
-const status = document.getElementById('status');
-const decLittle = document.getElementById('decLittle');
-const decBig = document.getElementById('decBig');
-const hexView = document.getElementById('hexView');
-const hexWithColonsEl = document.getElementById('hexWithColons');
-const val8 = document.getElementById('val8');
-const val16 = document.getElementById('val16');
-const val24 = document.getElementById('val24');
-const val40 = document.getElementById('val40');
-const listBody = document.getElementById('listBody');
-const exportBtn = document.getElementById('exportBtn');
-const clearBtn = document.getElementById('clearBtn');
+      const record = { name, ...parsed };
+      let data = JSON.parse(localStorage.getItem("uidData") || "[]");
+      data.push(record);
+      localStorage.setItem("uidData", JSON.stringify(data));
+      renderTable();
+    }
 
-/* --- persistence key --- */
-const STORAGE_KEY = 'nfc_uid_manager_entries_v1';
+    function renderTable() {
+      const tbody = document.querySelector("#dataTable tbody");
+      tbody.innerHTML = "";
+      const data = JSON.parse(localStorage.getItem("uidData") || "[]");
+      data.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${r.name}</td>
+                        <td>${r.uid}</td>
+                        <td>${r.bit8}</td>
+                        <td>${r.bit16}</td>
+                        <td>${r.bit24}</td>
+                        <td>${r.bit40}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
 
-/* --- render conversions for current uid input --- */
-function renderConversionsFromInput() {
-  let raw = uidInput.value;
-  let hex = sanitizeHex(raw);
-  hexView.textContent = hex || '—';
-  hexWithColonsEl.textContent = hexWithColons(hex) || '—';
+    function clearData() {
+      localStorage.removeItem("uidData");
+      renderTable();
+    }
 
-  // big-endian (as hex order)
-  decBig.textContent = hexToDecSafe(hex);
-
-  // little-endian (reverse bytes)
-  let rev = reverseBytes(hex);
-  decLittle.textContent = hexToDecSafe(rev);
-
-  // 8/16/24-bit: take last 1/2/3 bytes (as hex)
-  val8.textContent  = hexToDecSafe(chunkRight(hex,2));
-  val16.textContent = hexToDecSafe(chunkRight(hex,4));
-  val24.textContent = hexToDecSafe(chunkRight(hex,6));
-
-  // 40-bit: if <=4 bytes prepend 00, if longer take last up to 5 bytes pad left
-  let hex40;
-  if(hex.length <= 8) hex40 = '00' + hex;
-  else hex40 = hex.padStart(10,'0');
-  val40.textContent = hexToDecSafe(hex40);
-}
-
-/* --- NFC scanning --- */
-async function startNfcScan() {
-  if (!('NDEFReader' in window)) {
-    status.textContent = 'Status: Web NFC nie jest dostępne w tej przeglądarce.';
-    return;
-  }
-  try {
-    const ndef = new NDEFReader();
-    await ndef.scan(); // must be triggered by user gesture (click)
-    status.textContent = 'Status: Skanowanie... przyłóż kartę';
-    ndef.onreading = event => {
-      // serialNumber najczęściej zawiera UID w hex
-      const sn = event.serialNumber || '';
-      let hex = sanitizeHex(sn);
-      if(!hex) {
-        // fallback: try to read records if present (rare)
-        status.textContent = 'Status: odczytano tag, ale brak serialNumber.';
-        return;
-      }
-      // wypełnij pole i pokaż przeliczenia
-      uidInput.value = hexWithColons(hex);
-      renderConversionsFromInput();
-      status.textContent = 'Status: Odczytano UID';
-    };
-    ndef.onreadingerror = () => {
-      status.textContent = 'Status: Błąd odczytu tagu.';
-    };
-  } catch (err) {
-    status.textContent = 'Status: Błąd: ' + (err && err.message ? err.message : String(err));
-  }
-}
-
-/* --- List management --- */
-function loadEntries() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return [];
-    return JSON.parse(raw);
-  } catch(e) {
-    return [];
-  }
-}
-function saveEntries(entries) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
-function renderList() {
-  const entries = loadEntries();
-  listBody.innerHTML = '';
-  entries.forEach((el, idx) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${idx+1}</td>
-      <td>${escapeHtml(el.name)}</td>
-      <td>${el.hexWithColons}</td>
-      <td>${el.decLittle}</td>
-      <td>${el.val8} / ${el.val16} / ${el.val24} / ${el.val40}</td>
-      <td>${el.date}</td>
-      <td><button data-idx="${idx}" class="ghost">Usuń</button></td>
-    `;
-    listBody.appendChild(tr);
-  });
-  // attach delete handlers
-  listBody.querySelectorAll('button[data-idx]').forEach(btn=>{
-    btn.addEventListener('click', () => {
-      const i = Number(btn.getAttribute('data-idx'));
-      const arr = loadEntries();
-      arr.splice(i,1);
-      saveEntries(arr);
-      renderList();
-    });
-  });
-}
-
-/* --- helpers --- */
-function nowStr() {
-  return new Date().toLocaleString();
-}
-function escapeHtml(s) {
-  if(!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-/* --- Save current entry --- */
-function saveCurrentEntry() {
-  const rawUid = uidInput.value || '';
-  const hex = sanitizeHex(rawUid);
-  if(!hex) {
-    alert('UID pusty lub nieprawidłowy.');
-    return;
-  }
-  const name = (nameInput.value || '').trim();
-  const decLittleVal = hexToDecSafe(reverseBytes(hex));
-  const decBigVal = hexToDecSafe(hex);
-  const v8  = hexToDecSafe(chunkRight(hex,2));
-  const v16 = hexToDecSafe(chunkRight(hex,4));
-  const v24 = hexToDecSafe(chunkRight(hex,6));
-  const hex40 = (hex.length <= 8) ? ('00' + hex) : hex.padStart(10,'0');
-  const v40 = hexToDecSafe(hex40);
-
-  const entry = {
-    name: name,
-    hex: hex,
-    hexWithColons: hexWithColons(hex),
-    decLittle: decLittleVal,
-    decBig: decBigVal,
-    val8: v8,
-    val16: v16,
-    val24: v24,
-    val40: v40,
-    date: nowStr()
-  };
-
-  const arr = loadEntries();
-  arr.push(entry);
-  saveEntries(arr);
-  renderList();
-  status.textContent = 'Status: Zapisano wpis.';
-}
-
-/* --- CSV export --- */
-function exportCsv() {
-  const arr = loadEntries();
-  if(!arr.length) { alert('Brak zapisanych wpisów.'); return; }
-  const header = ['name','hex','hexWithColons','decLittle','decBig','val8','val16','val24','val40','date'];
-  const rows = [header.join(',')].concat(arr.map(e=>{
-    return [
-      `"${(e.name||'').replace(/"/g,'""')}"`,
-      e.hex,
-      e.hexWithColons,
-      e.decLittle,
-      e.decBig,
-      e.val8,
-      e.val16,
-      e.val24,
-      e.val40,
-      `"${e.date}"`
-    ].join(',');
-  }));
-  const csv = rows.join('\r\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'nfc_entries.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-/* --- Clear all --- */
-function clearAll() {
-  if(!confirm('Na pewno chcesz usunąć wszystkie zapisane wpisy?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  renderList();
-  status.textContent = 'Status: Wszystko usunięte.';
-}
-
-/* --- init handlers --- */
-scanBtn.addEventListener('click', async () => {
-  await startNfcScan();
-});
-uidInput.addEventListener('input', renderConversionsFromInput);
-saveBtn.addEventListener('click', saveCurrentEntry);
-exportBtn.addEventListener('click', exportCsv);
-clearBtn.addEventListener('click', clearAll);
-
-/* --- On load --- */
-renderConversionsFromInput();
-renderList();
-status.textContent = 'Status: gotowe';
-</script>
+    renderTable();
+  </script>
 </body>
 </html>
