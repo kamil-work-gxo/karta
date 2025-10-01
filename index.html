@@ -4,13 +4,21 @@
   <meta charset="UTF-8">
   <title>UID Converter (Firebase + NFC)</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    input, button { margin: 5px; padding: 8px; font-size: 16px; }
-    table { border-collapse: collapse; margin-top: 20px; width: 100%; font-size: 14px; }
-    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-    .inputs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-    button.copy { font-size: 12px; padding: 3px 6px; margin-left: 5px; }
-    @media (max-width: 600px) {
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f5f5f5; color: #333; }
+    h2 { color: #2c3e50; }
+    .inputs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    input { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; flex: 1; min-width: 120px; }
+    button { padding: 10px 15px; font-size: 14px; border: none; border-radius: 5px; cursor: pointer; background: #3498db; color: white; transition: background 0.3s; }
+    button:hover { background: #2980b9; }
+    button.delete { background: #e74c3c; }
+    button.delete:hover { background: #c0392b; }
+    button.copy { background: #2ecc71; margin-left:5px; padding:3px 6px; font-size:12px; }
+    button.copy:hover { background: #27ae60; }
+    table { border-collapse: collapse; width: 100%; background: white; border-radius: 5px; overflow: hidden; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+    th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: center; }
+    th { background: #3498db; color: white; position: sticky; top: 0; }
+    tr:hover { background: #f0f8ff; }
+    @media (max-width: 768px) {
       .inputs { flex-direction: column; }
       table { display: block; overflow-x: auto; white-space: nowrap; }
     }
@@ -31,6 +39,7 @@
   <table id="dataTable">
     <thead>
       <tr>
+        <th>ID</th>
         <th>Imię</th>
         <th>Nazwisko</th>
         <th>UID</th>
@@ -47,11 +56,12 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+
     // 🔑 Wklej tu swoje dane konfiguracyjne z Firebase Console
     const firebaseConfig = {
       apiKey: "AIzaSyDCwlseUP_x1cX1oT0mGyoADqxx4Z54Bj4",
       authDomain: "rfid-web-3c469.firebaseapp.com",
-      databaseURL: "https://rfid-web-3c469-default-rtdb.europe-west1.firebasedatabase.app",
+      databaseURL: “https://rfid-web-3c469-default-rtdb.europe-west1.firebasedatabase.app”,
       projectId: "rfid-web-3c469",
       storageBucket: "rfid-web-3c469.firebasestorage.app",
       messagingSenderId: "615763306601",
@@ -62,14 +72,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ===== Funkcja konwersji UID =====
     function parseUID(uidHex) {
       const hex = uidHex.replace(/:/g, "").toUpperCase();
       const bytes = hex.match(/.{2}/g);
       if (!bytes || bytes.length < 4) return null;
 
       const b1 = bytes[0], b2 = bytes[1], b3 = bytes[2], b4 = bytes[3];
-
       const val8  = parseInt(b3, 16);
       const val16 = parseInt(b2 + b1, 16);
       const val24 = parseInt(b3 + b2 + b1, 16);
@@ -83,34 +91,23 @@
       };
     }
 
-    // ===== Zapis danych =====
     function saveData() {
       const firstName = document.getElementById("firstName").value.trim();
       const lastName = document.getElementById("lastName").value.trim();
       const uidInput = document.getElementById("uid").value.trim();
-      if (!firstName || !lastName || !uidInput) {
-        alert("Podaj imię, nazwisko i UID");
-        return;
-      }
+      if (!firstName || !lastName || !uidInput) return;
 
       const parsed = parseUID(uidInput);
-      if (!parsed) {
-        alert("Błędny UID");
-        return;
-      }
+      if (!parsed) return;
 
       const record = { firstName, lastName, ...parsed };
       push(ref(db, "records"), record);
     }
 
-    // ===== Kopiowanie do schowka =====
     function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert("Skopiowano: " + text);
-      });
+      navigator.clipboard.writeText(text);
     }
 
-    // ===== Wyświetlanie =====
     function renderTable(data, keys) {
       const tbody = document.querySelector("#dataTable tbody");
       tbody.innerHTML = "";
@@ -118,35 +115,32 @@
         const r = data[key];
         const tr = document.createElement("tr");
         tr.innerHTML = `
+          <td>${key}</td>
           <td>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></td>
           <td>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></td>
           <td>${r.uid}</td>
           <td>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></td>
           <td>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></td>
           <td>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></td>
-          <td><button onclick="deleteRecord('${key}')">❌ Usuń</button></td>
+          <td><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    // ===== Nasłuch Firebase =====
     onValue(ref(db, "records"), (snapshot) => {
       const data = snapshot.val() || {};
       renderTable(data, Object.keys(data));
     });
 
-    // ===== Usuwanie całej bazy =====
     function clearData() {
       remove(ref(db, "records"));
     }
 
-    // ===== Usuwanie pojedynczego rekordu =====
     function deleteRecord(key) {
       remove(ref(db, "records/" + key));
     }
 
-    // ===== NFC =====
     async function startNFC() {
       if ("NDEFReader" in window) {
         try {
@@ -156,16 +150,14 @@
             const serial = event.serialNumber;
             document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join(":");
           };
-          alert("Przyłóż kartę do telefonu");
         } catch (error) {
-          alert("Błąd NFC: " + error);
+          console.error("Błąd NFC:", error);
         }
       } else {
-        alert("Twoja przeglądarka nie obsługuje Web NFC (działa tylko na Android + Chrome).");
+        console.log("Twoja przeglądarka nie obsługuje Web NFC.");
       }
     }
 
-    // ===== Eksport funkcji =====
     window.saveData = saveData;
     window.clearData = clearData;
     window.deleteRecord = deleteRecord;
