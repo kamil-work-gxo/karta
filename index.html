@@ -77,15 +77,22 @@
       };
     }
 
-    function saveData() {
-      const firstName = document.getElementById("firstName").value.trim();
-      const lastName = document.getElementById("lastName").value.trim();
-      const uidInput = document.getElementById("uid").value.trim();
-      if (!firstName || !lastName || !uidInput) return;
-      const parsed = parseUID(uidInput);
-      if (!parsed) return;
-      db.ref('records').push({ firstName, lastName, ...parsed });
-    }
+function saveData() {
+  const firstName = document.getElementById("firstName").value.trim();
+  const lastName = document.getElementById("lastName").value.trim();
+  const uidInput = document.getElementById("uid").value.trim();
+  if (!firstName || !lastName || !uidInput) return;
+
+  const parsed = parseUID(uidInput);
+  if (!parsed) return;
+
+  db.ref('records').push({ firstName, lastName, ...parsed });
+
+  // 🔹 Dodajemy czyszczenie pól po zapisaniu
+  document.getElementById("firstName").value = "";
+  document.getElementById("lastName").value = "";
+  document.getElementById("uid").value = "";
+}
 
     function copyToClipboard(text) {
       navigator.clipboard.writeText(text);
@@ -131,7 +138,7 @@
           await reader.scan();
           reader.onreading = event => {
             const serial = event.serialNumber;
-            document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join(":");
+            document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join("");
           };
         } catch(err) {
           console.error("Błąd NFC:", err);
