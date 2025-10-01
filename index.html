@@ -31,22 +31,25 @@
     <input id="firstName" placeholder="Imię">
     <input id="lastName" placeholder="Nazwisko">
     <input id="uid" placeholder="UID np. 95:0C:AA:57">
-    <button onclick="saveData()">Zapisz</button>
-    <button onclick="clearData()">Wyczyść wszystko</button>
-    <button onclick="startNFC()">Skanuj NFC</button>
+    <button id="saveBtn">Zapisz</button>
+    <button id="clearBtn">Wyczyść wszystko</button>
+    <button id="nfcBtn">Skanuj NFC</button>
   </div>
 
   <div class="cards-container" id="cardsContainer"></div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
-    // 🔑 Wklej tu swoje dane konfiguracyjne z Firebase Console
+  <script>
+
+
+        // 🔑 Wklej tu swoje dane konfiguracyjne z Firebase Console
     const firebaseConfig = {
       apiKey: "AIzaSyDCwlseUP_x1cX1oT0mGyoADqxx4Z54Bj4",
       authDomain: "rfid-web-3c469.firebaseapp.com",
-      databaseURL: “rfid-web-3c469-default-rtdb.europe-west1.firebasedatabase.app”,
+      databaseURL: “https://rfid-web-3c469-default-rtdb.europe-west1.firebasedatabase.app”,
       projectId: "rfid-web-3c469",
       storageBucket: "rfid-web-3c469.firebasestorage.app",
       messagingSenderId: "615763306601",
@@ -54,26 +57,23 @@
     };
 
 
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
     function parseUID(uidHex) {
       const hex = uidHex.replace(/:/g, "").toUpperCase();
       const bytes = hex.match(/.{2}/g);
       if (!bytes || bytes.length < 4) return null;
-
       const b1 = bytes[0], b2 = bytes[1], b3 = bytes[2], b4 = bytes[3];
       const val8  = parseInt(b3, 16);
       const val16 = parseInt(b2 + b1, 16);
       const val24 = parseInt(b3 + b2 + b1, 16);
       const val40 = parseInt("00" + b4 + b3 + b2 + b1, 16);
-
       return {
         uid: hex,
-        bit40: val40.toString().padStart(10, "0"),
-        bit24: val24.toString().padStart(10, "0"),
-        bit8_16: `${val8},${val16.toString().padStart(5, "0")}`
+        bit40: val40.toString().padStart(10,"0"),
+        bit24: val24.toString().padStart(10,"0"),
+        bit8_16: `${val8},${val16.toString().padStart(5,"0")}`
       };
     }
 
@@ -82,50 +82,46 @@
       const lastName = document.getElementById("lastName").value.trim();
       const uidInput = document.getElementById("uid").value.trim();
       if (!firstName || !lastName || !uidInput) return;
-
       const parsed = parseUID(uidInput);
       if (!parsed) return;
-
-      const record = { firstName, lastName, ...parsed };
-      push(ref(db, "records"), record);
+      db.ref('records').push({ firstName, lastName, ...parsed });
     }
 
     function copyToClipboard(text) {
       navigator.clipboard.writeText(text);
     }
 
-    function renderCards(data, keys) {
+    function renderCards(data) {
       const container = document.getElementById("cardsContainer");
       container.innerHTML = "";
-      keys.forEach(key => {
+      Object.keys(data).forEach(key => {
         const r = data[key];
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          <div class="card-row"><span class="label">ID:</span> ${key}</div>
-          <div class="card-row"><span class="label">Imię:</span> ${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></div>
-          <div class="card-row"><span class="label">Nazwisko:</span> ${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></div>
-          <div class="card-row"><span class="label">UID:</span> ${r.uid}</div>
-          <div class="card-row"><span class="label">40-bit:</span> ${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
-          <div class="card-row"><span class="label">24-bit:</span> ${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
-          <div class="card-row"><span class="label">8,16-bit:</span> ${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
+          <div class="card-row"><span class="label">ID:</span>${key}</div>
+          <div class="card-row"><span class="label">Imię:</span>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></div>
+          <div class="card-row"><span class="label">Nazwisko:</span>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></div>
+          <div class="card-row"><span class="label">UID:</span>${r.uid}</div>
+          <div class="card-row"><span class="label">40-bit:</span>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
+          <div class="card-row"><span class="label">24-bit:</span>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
+          <div class="card-row"><span class="label">8,16-bit:</span>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
           <div class="card-row"><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></div>
         `;
         container.appendChild(card);
       });
     }
 
-    onValue(ref(db, "records"), (snapshot) => {
-      const data = snapshot.val() || {};
-      renderCards(data, Object.keys(data));
+    db.ref('records').on('value', snapshot => {
+      renderCards(snapshot.val() || {});
     });
 
     function clearData() {
-      remove(ref(db, "records"));
+      db.ref('records').remove();
     }
 
     function deleteRecord(key) {
-      remove(ref(db, "records/" + key));
+      db.ref('records/' + key).remove();
     }
 
     async function startNFC() {
@@ -137,20 +133,18 @@
             const serial = event.serialNumber;
             document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join(":");
           };
-        } catch (error) {
-          console.error("Błąd NFC:", error);
+        } catch(err) {
+          console.error("Błąd NFC:", err);
         }
       } else {
         console.log("Twoja przeglądarka nie obsługuje Web NFC.");
       }
     }
 
-    // ⚡️ Przypisanie funkcji do window, aby onclick działał
-    window.saveData = saveData;
-    window.clearData = clearData;
-    window.deleteRecord = deleteRecord;
-    window.copyToClipboard = copyToClipboard;
-    window.startNFC = startNFC;
+    // EventListenery dla przycisków
+    document.getElementById("saveBtn").addEventListener("click", saveData);
+    document.getElementById("clearBtn").addEventListener("click", clearData);
+    document.getElementById("nfcBtn").addEventListener("click", startNFC);
   </script>
 </body>
 </html>
