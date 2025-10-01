@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>UID Converter</title>
+  <title>UID Converter (Firebase)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     input, button { margin: 5px; padding: 8px; }
@@ -12,7 +12,8 @@
 </head>
 <body>
   <h2>UID → 8/16/24/40 bit</h2>
-  <input id="name" placeholder="Imię i nazwisko">
+  <input id="firstName" placeholder="Imię">
+  <input id="lastName" placeholder="Nazwisko">
   <input id="uid" placeholder="UID np. 95:0C:AA:57">
   <button onclick="saveData()">Zapisz</button>
   <button onclick="clearData()">Wyczyść wszystko</button>
@@ -20,7 +21,8 @@
   <table id="dataTable">
     <thead>
       <tr>
-        <th>Imię i nazwisko</th>
+        <th>Imię</th>
+        <th>Nazwisko</th>
         <th>UID</th>
         <th>8-bit</th>
         <th>16-bit</th>
@@ -31,7 +33,26 @@
     <tbody></tbody>
   </table>
 
-  <script>
+  <script type="module">
+    // ===== Firebase SDK =====
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 🔑 Wklej tu swoje dane konfiguracyjne z Firebase Console
+    const firebaseConfig = {
+      apiKey: "TWÓJ_KLUCZ_API",
+      authDomain: "TWÓJ_PROJEKT.firebaseapp.com",
+      databaseURL: "https://TWÓJ_PROJEKT-default-rtdb.firebaseio.com",
+      projectId: "TWÓJ_PROJEKT",
+      storageBucket: "TWÓJ_PROJEKT.appspot.com",
+      messagingSenderId: "NUMER",
+      appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ===== Funkcje UID =====
     function parseUID(uidHex) {
       const hex = uidHex.replace(/:/g, "").toUpperCase();
       const bytes = hex.match(/.{2}/g);
@@ -53,43 +74,59 @@
       };
     }
 
+    // ===== Zapis danych =====
     function saveData() {
-      const name = document.getElementById("name").value.trim();
+      const firstName = document.getElementById("firstName").value.trim();
+      const lastName = document.getElementById("lastName").value.trim();
       const uidInput = document.getElementById("uid").value.trim();
-      if (!name || !uidInput) return alert("Podaj imię i nazwisko oraz UID");
+      if (!firstName || !lastName || !uidInput) {
+        alert("Podaj imię, nazwisko i UID");
+        return;
+      }
 
       const parsed = parseUID(uidInput);
-      if (!parsed) return alert("Błędny UID");
+      if (!parsed) {
+        alert("Błędny UID");
+        return;
+      }
 
-      const record = { name, ...parsed };
-      let data = JSON.parse(localStorage.getItem("uidData") || "[]");
-      data.push(record);
-      localStorage.setItem("uidData", JSON.stringify(data));
-      renderTable();
+      const record = { firstName, lastName, ...parsed };
+      push(ref(db, "records"), record);
     }
 
-    function renderTable() {
+    // ===== Wyświetlanie danych =====
+    function renderTable(data) {
       const tbody = document.querySelector("#dataTable tbody");
       tbody.innerHTML = "";
-      const data = JSON.parse(localStorage.getItem("uidData") || "[]");
       data.forEach(r => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${r.name}</td>
-                        <td>${r.uid}</td>
-                        <td>${r.bit8}</td>
-                        <td>${r.bit16}</td>
-                        <td>${r.bit24}</td>
-                        <td>${r.bit40}</td>`;
+        tr.innerHTML = `
+          <td>${r.firstName}</td>
+          <td>${r.lastName}</td>
+          <td>${r.uid}</td>
+          <td>${r.bit8}</td>
+          <td>${r.bit16}</td>
+          <td>${r.bit24}</td>
+          <td>${r.bit40}</td>
+        `;
         tbody.appendChild(tr);
       });
     }
 
+    // ===== Nasłuch w czasie rzeczywistym =====
+    onValue(ref(db, "records"), (snapshot) => {
+      const data = snapshot.val() || {};
+      renderTable(Object.values(data));
+    });
+
+    // ===== Czyszczenie danych =====
     function clearData() {
-      localStorage.removeItem("uidData");
-      renderTable();
+      remove(ref(db, "records"));
     }
 
-    renderTable();
+    // udostępnienie funkcji globalnie
+    window.saveData = saveData;
+    window.clearData = clearData;
   </script>
 </body>
 </html>
