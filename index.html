@@ -2,21 +2,31 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>UID Converter (Firebase)</title>
+  <title>UID Converter (Firebase + NFC)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
-    input, button { margin: 5px; padding: 8px; }
-    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    input, button { margin: 5px; padding: 8px; font-size: 16px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; font-size: 14px; }
     th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    .inputs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    button.copy { font-size: 12px; padding: 3px 6px; margin-left: 5px; }
+    @media (max-width: 600px) {
+      .inputs { flex-direction: column; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
   </style>
 </head>
 <body>
-  <h2>UID → 8/16/24/40 bit</h2>
-  <input id="firstName" placeholder="Imię">
-  <input id="lastName" placeholder="Nazwisko">
-  <input id="uid" placeholder="UID np. 95:0C:AA:57">
-  <button onclick="saveData()">Zapisz</button>
-  <button onclick="clearData()">Wyczyść wszystko</button>
+  <h2>UID → 40 / 24 / 8,16 bit</h2>
+
+  <div class="inputs">
+    <input id="firstName" placeholder="Imię">
+    <input id="lastName" placeholder="Nazwisko">
+    <input id="uid" placeholder="UID np. 95:0C:AA:57">
+    <button onclick="saveData()">Zapisz</button>
+    <button onclick="clearData()">Wyczyść wszystko</button>
+    <button onclick="startNFC()">Skanuj NFC</button>
+  </div>
 
   <table id="dataTable">
     <thead>
@@ -24,17 +34,16 @@
         <th>Imię</th>
         <th>Nazwisko</th>
         <th>UID</th>
-        <th>8-bit</th>
-        <th>16-bit</th>
-        <th>24-bit</th>
         <th>40-bit</th>
+        <th>24-bit</th>
+        <th>8,16-bit</th>
+        <th>Akcje</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script type="module">
-    // ===== Firebase SDK =====
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -42,17 +51,18 @@
     const firebaseConfig = {
       apiKey: "AIzaSyDCwlseUP_x1cX1oT0mGyoADqxx4Z54Bj4",
       authDomain: "rfid-web-3c469.firebaseapp.com",
-      databaseURL: "https://rfid-web-3c469-default-rtdb.europe-west1.firebasedatabase.app",
+      databaseURL: https://rfid-web-3c469-default-rtdb.europe-west1.firebasedatabase.app,
       projectId: "rfid-web-3c469",
       storageBucket: "rfid-web-3c469.firebasestorage.app",
       messagingSenderId: "615763306601",
       appId: "1:615763306601:web:789abc582deef95c04daf8"
     };
 
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ===== Funkcje UID =====
+    // ===== Funkcja konwersji UID =====
     function parseUID(uidHex) {
       const hex = uidHex.replace(/:/g, "").toUpperCase();
       const bytes = hex.match(/.{2}/g);
@@ -67,10 +77,9 @@
 
       return {
         uid: hex,
-        bit8: val8,
-        bit16: val16.toString().padStart(5, "0"),
+        bit40: val40.toString().padStart(10, "0"),
         bit24: val24.toString().padStart(10, "0"),
-        bit40: val40.toString().padStart(10, "0")
+        bit8_16: `${val8},${val16.toString().padStart(5, "0")}`
       };
     }
 
@@ -94,39 +103,74 @@
       push(ref(db, "records"), record);
     }
 
-    // ===== Wyświetlanie danych =====
-    function renderTable(data) {
+    // ===== Kopiowanie do schowka =====
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Skopiowano: " + text);
+      });
+    }
+
+    // ===== Wyświetlanie =====
+    function renderTable(data, keys) {
       const tbody = document.querySelector("#dataTable tbody");
       tbody.innerHTML = "";
-      data.forEach(r => {
+      keys.forEach(key => {
+        const r = data[key];
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${r.firstName}</td>
-          <td>${r.lastName}</td>
+          <td>${r.firstName} <button class="copy" onclick="copyToClipboard('${r.firstName}')">📋</button></td>
+          <td>${r.lastName} <button class="copy" onclick="copyToClipboard('${r.lastName}')">📋</button></td>
           <td>${r.uid}</td>
-          <td>${r.bit8}</td>
-          <td>${r.bit16}</td>
-          <td>${r.bit24}</td>
-          <td>${r.bit40}</td>
+          <td>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></td>
+          <td>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></td>
+          <td>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></td>
+          <td><button onclick="deleteRecord('${key}')">❌ Usuń</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    // ===== Nasłuch w czasie rzeczywistym =====
+    // ===== Nasłuch Firebase =====
     onValue(ref(db, "records"), (snapshot) => {
       const data = snapshot.val() || {};
-      renderTable(Object.values(data));
+      renderTable(data, Object.keys(data));
     });
 
-    // ===== Czyszczenie danych =====
+    // ===== Usuwanie całej bazy =====
     function clearData() {
       remove(ref(db, "records"));
     }
 
-    // udostępnienie funkcji globalnie
+    // ===== Usuwanie pojedynczego rekordu =====
+    function deleteRecord(key) {
+      remove(ref(db, "records/" + key));
+    }
+
+    // ===== NFC =====
+    async function startNFC() {
+      if ("NDEFReader" in window) {
+        try {
+          const reader = new NDEFReader();
+          await reader.scan();
+          reader.onreading = event => {
+            const serial = event.serialNumber;
+            document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join(":");
+          };
+          alert("Przyłóż kartę do telefonu");
+        } catch (error) {
+          alert("Błąd NFC: " + error);
+        }
+      } else {
+        alert("Twoja przeglądarka nie obsługuje Web NFC (działa tylko na Android + Chrome).");
+      }
+    }
+
+    // ===== Eksport funkcji =====
     window.saveData = saveData;
     window.clearData = clearData;
+    window.deleteRecord = deleteRecord;
+    window.copyToClipboard = copyToClipboard;
+    window.startNFC = startNFC;
   </script>
 </body>
 </html>
