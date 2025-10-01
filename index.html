@@ -171,7 +171,11 @@ function confirmClear() {
     clearData();
   }
 }
-
+function confirmDelete(key) {
+  if (confirm("Czy na pewno chcesz usunąć ten rekord?")) {
+    deleteRecord(key);
+  }
+}
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -231,7 +235,7 @@ function renderCards(data) {
       <div class="card-row"><span class="label">40-bit:</span>${r.bit40} <button class="copy" onclick="copyToClipboard('${r.bit40}')">📋</button></div>
       <div class="card-row"><span class="label">24-bit:</span>${r.bit24} <button class="copy" onclick="copyToClipboard('${r.bit24}')">📋</button></div>
       <div class="card-row"><span class="label">8,16-bit:</span>${r.bit8_16} <button class="copy" onclick="copyToClipboard('${r.bit8_16}')">📋</button></div>
-      <div class="card-row"><button class="delete" onclick="deleteRecord('${key}')">❌ Usuń</button></div>
+      <div class="card-row"><button class="delete" onclick="confirmDelete('${key}')">❌ Usuń</button></div>
     `;
     container.appendChild(card);
   });
