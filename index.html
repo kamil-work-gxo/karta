@@ -136,10 +136,11 @@ function saveData() {
         try {
           const reader = new NDEFReader();
           await reader.scan();
-          reader.onreading = event => {
-            const serial = event.serialNumber;
-            document.getElementById("uid").value = serial.toUpperCase().match(/.{1,2}/g).join(":");
-          };
+reader.onreading = event => {
+  let serial = event.serialNumber.replace(/[^0-9A-Fa-f]/g, ""); // usuwa wszystko poza hex
+  let uidFormatted = serial.match(/.{1,2}/g).join(":").toUpperCase();
+  document.getElementById("uid").value = uidFormatted;
+};
         } catch(err) {
           console.error("Błąd NFC:", err);
         }
