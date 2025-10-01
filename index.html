@@ -33,7 +33,7 @@
     <input id="lastName" placeholder="Nazwisko">
     <input id="uid" placeholder="UID np. 95:0C:AA:57">
     <button onclick="saveData()">Zapisz</button>
-    <button onclick="clearData()">Wyczyść wszystko</button>
+    <button onclick="confirmClear()">Wyczyść wszystko</button>
     <button onclick="startNFC()">Skanuj NFC</button>
   </div>
 
@@ -55,7 +55,11 @@
       appId: "1:615763306601:web:789abc582deef95c04daf8"
     };
 
-
+function confirmClear() {
+  if (confirm("Czy na pewno chcesz usunąć wszystkie rekordy?")) {
+    clearData();
+  }
+}
 
 
     firebase.initializeApp(firebaseConfig);
